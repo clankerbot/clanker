@@ -35,10 +35,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 ARG DOCKER_VERSION=27.3.1
 ARG GIT_DELTA_VERSION=0.18.2
 RUN ARCH=$(dpkg --print-architecture) && \
-  for i in 1 2 3; do \
-    curl -fsSL "https://download.docker.com/linux/static/stable/$(uname -m)/docker-${DOCKER_VERSION}.tgz" | tar xz --strip-components=1 -C /usr/local/bin docker/docker && break || sleep 5; \
-  done && \
-  curl -fsSL "https://github.com/dandavison/delta/releases/download/${GIT_DELTA_VERSION}/git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" -o /tmp/git-delta.deb && \
+  (curl -fsSL --retry 3 --retry-delay 5 "https://download.docker.com/linux/static/stable/$(uname -m)/docker-${DOCKER_VERSION}.tgz" | tar xz --strip-components=1 -C /usr/local/bin docker/docker) && \
+  curl -fsSL --retry 3 --retry-delay 5 "https://github.com/dandavison/delta/releases/download/${GIT_DELTA_VERSION}/git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" -o /tmp/git-delta.deb && \
   dpkg -i /tmp/git-delta.deb && rm /tmp/git-delta.deb
 
 # Install uv/uvx from official image (https://docs.astral.sh/uv/guides/integration/docker/)
