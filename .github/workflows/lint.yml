@@ -21,6 +21,7 @@ jobs:
         with:
           scandir: '.'
           severity: warning
+          ignore_paths: '.venv deprecated'
 
   hadolint:
     name: Hadolint (Dockerfile)
