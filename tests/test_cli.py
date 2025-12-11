@@ -32,8 +32,8 @@ def run_clanker(
     ssh_key_file: str | None = None,
     build: bool = False,
 ) -> subprocess.CompletedProcess:
-    """Run clanker-shell with --shell in a given project directory."""
-    cmd = ["uv", "run", "clanker-shell", "--shell", shell_cmd]
+    """Run clankercage with --shell in a given project directory."""
+    cmd = ["uv", "run", "clankercage", "--shell", shell_cmd]
 
     if build:
         cmd.append("--build")
@@ -57,7 +57,7 @@ def describe_workspace_mounting():
     def it_mounts_local_directory_to_workspace(workspace_path: Path):
         """Verify that the local directory is mounted at /workspace in the container."""
         # Create a unique file in the temp directory
-        marker = f"clanker-test-{uuid.uuid4()}"
+        marker = f"clankercage-test-{uuid.uuid4()}"
         marker_file = workspace_path / "test-marker.txt"
         marker_file.write_text(marker)
         marker_file.chmod(0o644)  # Readable by container's node user

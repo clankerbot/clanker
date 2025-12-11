@@ -1,4 +1,4 @@
-"""CLI entry points for clanker."""
+"""CLI entry points for ClankerCage."""
 
 import argparse
 import json
@@ -19,7 +19,7 @@ def get_embedded_devcontainer_dir() -> Path:
 
 def get_workspace_dir() -> Path:
     """Get the fixed workspace directory for devcontainer files."""
-    return Path.home() / ".cache" / "clanker" / "workspace"
+    return Path.home() / ".cache" / "clankercage" / "workspace"
 
 
 def extract_devcontainer_files() -> Path:
@@ -69,7 +69,7 @@ def modify_config(config: dict, args: argparse.Namespace, runtime_dir: Path, dev
         config.pop("image", None)
         config["build"] = {"dockerfile": "Dockerfile", "context": "."}
 
-    # Mount the actual project directory (where user ran clanker from)
+    # Mount the actual project directory (where user ran clankercage from)
     if project_dir:
         config["workspaceMount"] = f"source={project_dir},target=/workspace,type=bind,consistency=delegated"
 
@@ -159,11 +159,11 @@ def create_parser() -> argparse.ArgumentParser:
 
 def apply_env_defaults(args: argparse.Namespace) -> None:
     """Apply environment variable defaults to args."""
-    args.ssh_key_file = args.ssh_key_file or os.environ.get("CLANKER_SSH_KEY")
-    args.git_user_name = args.git_user_name or os.environ.get("CLANKER_GIT_USER_NAME")
-    args.git_user_email = args.git_user_email or os.environ.get("CLANKER_GIT_USER_EMAIL")
-    args.gh_token = args.gh_token or os.environ.get("CLANKER_GH_TOKEN")
-    args.gpg_key_id = args.gpg_key_id or os.environ.get("CLANKER_GPG_KEY_ID")
+    args.ssh_key_file = args.ssh_key_file or os.environ.get("CLANKERCAGE_SSH_KEY")
+    args.git_user_name = args.git_user_name or os.environ.get("CLANKERCAGE_GIT_USER_NAME")
+    args.git_user_email = args.git_user_email or os.environ.get("CLANKERCAGE_GIT_USER_EMAIL")
+    args.gh_token = args.gh_token or os.environ.get("CLANKERCAGE_GH_TOKEN")
+    args.gpg_key_id = args.gpg_key_id or os.environ.get("CLANKERCAGE_GPG_KEY_ID")
 
 
 def run_devcontainer(config_path: Path, workspace_dir: Path, project_dir: Path, claude_args: list[str], shell_cmd: str | None = None) -> None:
@@ -205,7 +205,7 @@ def run_devcontainer(config_path: Path, workspace_dir: Path, project_dir: Path, 
     os.execvp("npx", exec_cmd)
 
 
-IMAGE_NAME = "ghcr.io/clankerbot/clanker:latest"
+IMAGE_NAME = "ghcr.io/clankerbot/clankercage:latest"
 
 
 def check_docker_accessible() -> None:
@@ -221,7 +221,7 @@ def check_docker_accessible() -> None:
             "╔════════════════════════════════════════════════════════════════╗\n"
             "║  ERROR: Docker is not running or not accessible               ║\n"
             "╠════════════════════════════════════════════════════════════════╣\n"
-            "║  Clanker requires Docker to run.                              ║\n"
+            "║  ClankerCage requires Docker to run.                          ║\n"
             "║                                                                ║\n"
             "║  Please ensure:                                               ║\n"
             "║    1. Docker is installed                                     ║\n"
@@ -276,7 +276,7 @@ def main() -> None:
     source_config = devcontainer_dir / "devcontainer.json"
 
     # Setup runtime directory for SSH config etc
-    runtime_dir = Path.home() / ".claude" / "clanker-runtime"
+    runtime_dir = Path.home() / ".claude" / "clankercage-runtime"
     runtime_dir.mkdir(parents=True, exist_ok=True)
 
     # Load and modify config
@@ -291,5 +291,5 @@ def main() -> None:
 
 
 def shell_remote() -> None:
-    """Alias for main() - for clanker-shell-remote entry point."""
+    """Alias for main() - for clankercage-remote entry point."""
     main()
