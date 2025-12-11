@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -122,19 +123,19 @@ def modify_config(config: dict, args: argparse.Namespace, runtime_dir: Path, dev
     commands = ["sudo /usr/local/bin/init-firewall.sh"]
 
     if args.git_user_name:
-        commands.append(f"git config --global user.name '{args.git_user_name}'")
+        commands.append(f"git config --global user.name {shlex.quote(args.git_user_name)}")
 
     if args.git_user_email:
-        commands.append(f"git config --global user.email '{args.git_user_email}'")
+        commands.append(f"git config --global user.email {shlex.quote(args.git_user_email)}")
 
     if args.gpg_key_id:
-        commands.append(f"git config --global user.signingkey '{args.gpg_key_id}'")
+        commands.append(f"git config --global user.signingkey {shlex.quote(args.gpg_key_id)}")
         commands.append("git config --global commit.gpgsign true")
         commands.append("git config --global gpg.program gpg")
         commands.append("gpg-connect-agent /bye >/dev/null 2>&1 || true")
 
     if args.gh_token:
-        commands.append(f"echo '{args.gh_token}' | gh auth login --with-token")
+        commands.append(f"echo {shlex.quote(args.gh_token)} | gh auth login --with-token")
 
     config["postStartCommand"] = " && ".join(commands)
 
