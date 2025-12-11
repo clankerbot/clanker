@@ -1,5 +1,5 @@
 """
-Tests for the clanker CLI.
+Tests for the ClankerCage CLI.
 
 These tests verify that:
 - The CLI correctly mounts local directories
@@ -15,22 +15,22 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from clanker.cli import (
+from clankercage.cli import (
     get_existing_container,
     container_has_ssh_mounts,
     warn_if_ssh_mount_missing,
 )
 
 
-def run_clanker(
+def run_clankercage(
     project_dir: Path,
     shell_cmd: str,
     timeout: int = 120,
     ssh_key_file: str | None = None,
     build: bool = False,
 ) -> subprocess.CompletedProcess:
-    """Run clanker with --shell in a given project directory."""
-    cmd = ["uv", "run", "clanker", "--shell", shell_cmd]
+    """Run clankercage with --shell in a given project directory."""
+    cmd = ["uv", "run", "clankercage", "--shell", shell_cmd]
 
     if build:
         cmd.append("--build")
@@ -54,12 +54,12 @@ def describe_workspace_mounting():
     def it_mounts_local_directory_to_workspace(tmp_path: Path):
         """Verify that the local directory is mounted at /workspace in the container."""
         # Create a unique file in the temp directory
-        marker = f"clanker-test-{uuid.uuid4()}"
+        marker = f"clankercage-test-{uuid.uuid4()}"
         marker_file = tmp_path / "test-marker.txt"
         marker_file.write_text(marker)
 
-        # Run clanker and check if the file exists in /workspace
-        result = run_clanker(tmp_path, "cat /workspace/test-marker.txt")
+        # Run clankercage and check if the file exists in /workspace
+        result = run_clankercage(tmp_path, "cat /workspace/test-marker.txt")
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
         assert marker in result.stdout, (
@@ -73,7 +73,7 @@ def describe_workspace_mounting():
         output_file = "output.txt"
 
         # Write a file from inside the container
-        result = run_clanker(tmp_path, f"echo '{marker}' > /workspace/{output_file}")
+        result = run_clankercage(tmp_path, f"echo '{marker}' > /workspace/{output_file}")
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
 
@@ -92,7 +92,7 @@ def describe_workspace_mounting():
         script.chmod(0o755)
 
         # Check the file is executable inside the container
-        result = run_clanker(tmp_path, "test -x /workspace/test-script.sh && echo 'executable'")
+        result = run_clankercage(tmp_path, "test -x /workspace/test-script.sh && echo 'executable'")
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
         assert "executable" in result.stdout, (
@@ -102,7 +102,7 @@ def describe_workspace_mounting():
     @pytest.mark.integration
     def it_shows_correct_working_directory(tmp_path: Path):
         """Verify that pwd shows /workspace."""
-        result = run_clanker(tmp_path, "pwd")
+        result = run_clankercage(tmp_path, "pwd")
 
         assert result.returncode == 0, f"Command failed: {result.stderr}"
         assert "/workspace" in result.stdout, (
@@ -116,10 +116,10 @@ def describe_docker_access():
     @pytest.mark.integration
     def it_can_access_docker_socket(tmp_path: Path):
         """Verify that docker commands work inside the container."""
-        result = run_clanker(tmp_path, "docker ps --format '{{.ID}}' | head -1")
+        result = run_clankercage(tmp_path, "docker ps --format '{{.ID}}' | head -1")
 
         assert result.returncode == 0, f"Docker command failed: {result.stderr}"
-        # Should return at least one container ID (the clanker container itself)
+        # Should return at least one container ID (the clankercage container itself)
         # or empty if no containers running - either is fine, just shouldn't error
 
 
@@ -129,7 +129,7 @@ def describe_installed_tools():
     @pytest.mark.integration
     def it_has_docker_available(tmp_path: Path):
         """Verify docker CLI is installed and can connect to daemon."""
-        result = run_clanker(tmp_path, "docker --version && docker info --format '{{.ServerVersion}}'")
+        result = run_clankercage(tmp_path, "docker --version && docker info --format '{{.ServerVersion}}'")
 
         assert result.returncode == 0, f"Docker not available: {result.stderr}"
         assert "Docker version" in result.stdout, f"Unexpected docker output: {result.stdout}"
@@ -137,7 +137,7 @@ def describe_installed_tools():
     @pytest.mark.integration
     def it_has_uv_available(tmp_path: Path):
         """Verify uv is installed."""
-        result = run_clanker(tmp_path, "uv --version")
+        result = run_clankercage(tmp_path, "uv --version")
 
         assert result.returncode == 0, f"uv not available: {result.stderr}"
         assert "uv" in result.stdout, f"Unexpected uv output: {result.stdout}"
@@ -145,28 +145,28 @@ def describe_installed_tools():
     @pytest.mark.integration
     def it_has_uvx_available(tmp_path: Path):
         """Verify uvx is installed."""
-        result = run_clanker(tmp_path, "uvx --version")
+        result = run_clankercage(tmp_path, "uvx --version")
 
         assert result.returncode == 0, f"uvx not available: {result.stderr}"
 
     @pytest.mark.integration
     def it_has_npm_available(tmp_path: Path):
         """Verify npm is installed."""
-        result = run_clanker(tmp_path, "npm --version")
+        result = run_clankercage(tmp_path, "npm --version")
 
         assert result.returncode == 0, f"npm not available: {result.stderr}"
 
     @pytest.mark.integration
     def it_has_pnpm_available(tmp_path: Path):
         """Verify pnpm is installed."""
-        result = run_clanker(tmp_path, "pnpm --version")
+        result = run_clankercage(tmp_path, "pnpm --version")
 
         assert result.returncode == 0, f"pnpm not available: {result.stderr}"
 
     @pytest.mark.integration
     def it_has_playwright_available(tmp_path: Path):
         """Verify playwright is installed and browsers are available."""
-        result = run_clanker(tmp_path, "npx playwright --version")
+        result = run_clankercage(tmp_path, "npx playwright --version")
 
         assert result.returncode == 0, f"Playwright not available: {result.stderr}"
         assert "Version" in result.stdout or result.stdout.strip(), (
@@ -178,7 +178,7 @@ def describe_installed_tools():
         """Verify playwright can launch chromium browser."""
         # Use npx playwright to test browser launch via screenshot
         # This verifies both playwright and chromium are working
-        result = run_clanker(
+        result = run_clankercage(
             tmp_path,
             "npx playwright screenshot --browser chromium about:blank /workspace/test.png && ls -la /workspace/test.png",
             timeout=60,
@@ -249,10 +249,10 @@ def describe_ssh():
     """SSH test using a local SSH server that mimics GitHub's behavior."""
 
     @pytest.mark.integration
-    def it_can_ssh_to_server_via_clanker(tmp_path: Path, ssh_server):
-        """Test SSH via clanker CLI - mirrors: uv run clanker --ssh-key-file KEY --shell 'ssh -T git@server'.
+    def it_can_ssh_to_server_via_clankercage(tmp_path: Path, ssh_server):
+        """Test SSH via clankercage CLI - mirrors: uv run clankercage --ssh-key-file KEY --shell 'ssh -T git@server'.
 
-        This test MUST use the real clanker CLI, not docker run directly.
+        This test MUST use the real clankercage CLI, not docker run directly.
         If this test passes but the real command fails, the test is wrong.
 
         NOTE: SSH mounts must be specified from the FIRST run. If a container is started
@@ -272,8 +272,8 @@ def describe_ssh():
         known_hosts = tmp_path / "server_known_hosts"
         known_hosts.write_text(keyscan.stdout)
 
-        # Run clanker WITH --ssh-key-file from the start
-        result = run_clanker(
+        # Run clankercage WITH --ssh-key-file from the start
+        result = run_clankercage(
             tmp_path,
             f"cat /workspace/server_known_hosts >> ~/.ssh/known_hosts && "
             f"ssh -T -i /home/node/.ssh/id_ed25519 -p {ssh_server['port']} git@{ssh_server['ip']} echo success",
@@ -283,7 +283,7 @@ def describe_ssh():
         )
 
         assert result.returncode == 0, (
-            f"SSH via clanker failed.\nstderr: {result.stderr}\nstdout: {result.stdout}"
+            f"SSH via clankercage failed.\nstderr: {result.stderr}\nstdout: {result.stdout}"
         )
         assert "success" in result.stdout, (
             f"Expected 'success' in output.\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -298,7 +298,7 @@ def describe_ssh_mount_warning():
 
         def it_returns_container_id_when_exists():
             """Should return container ID when a matching container exists."""
-            with patch("clanker.cli.subprocess.run") as mock_run:
+            with patch("clankercage.cli.subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(
                     stdout="abc123def456\n",
                     returncode=0
@@ -313,7 +313,7 @@ def describe_ssh_mount_warning():
 
         def it_returns_none_when_no_container():
             """Should return None when no matching container exists."""
-            with patch("clanker.cli.subprocess.run") as mock_run:
+            with patch("clankercage.cli.subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(
                     stdout="",
                     returncode=0
@@ -328,7 +328,7 @@ def describe_ssh_mount_warning():
         def it_returns_true_when_ssh_key_mounted():
             """Should return True when container has SSH key mount."""
             mounts_json = '[{"Destination": "/home/node/.ssh/id_ed25519"}]'
-            with patch("clanker.cli.subprocess.run") as mock_run:
+            with patch("clankercage.cli.subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(
                     stdout=mounts_json,
                     returncode=0
@@ -340,7 +340,7 @@ def describe_ssh_mount_warning():
         def it_returns_false_when_no_ssh_key_mounted():
             """Should return False when container only has .ssh directory but no key."""
             mounts_json = '[{"Destination": "/home/node/.ssh"}]'
-            with patch("clanker.cli.subprocess.run") as mock_run:
+            with patch("clankercage.cli.subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(
                     stdout=mounts_json,
                     returncode=0
@@ -352,7 +352,7 @@ def describe_ssh_mount_warning():
         def it_returns_false_when_no_ssh_mounts():
             """Should return False when container has no SSH mounts at all."""
             mounts_json = '[{"Destination": "/workspace"}, {"Destination": "/home/node/.claude"}]'
-            with patch("clanker.cli.subprocess.run") as mock_run:
+            with patch("clankercage.cli.subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(
                     stdout=mounts_json,
                     returncode=0
@@ -363,7 +363,7 @@ def describe_ssh_mount_warning():
 
         def it_returns_false_on_docker_error():
             """Should return False when docker inspect fails."""
-            with patch("clanker.cli.subprocess.run") as mock_run:
+            with patch("clankercage.cli.subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(
                     stdout="",
                     returncode=1
@@ -374,7 +374,7 @@ def describe_ssh_mount_warning():
 
         def it_returns_false_on_invalid_json():
             """Should return False when docker returns invalid JSON."""
-            with patch("clanker.cli.subprocess.run") as mock_run:
+            with patch("clankercage.cli.subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(
                     stdout="not valid json",
                     returncode=0
@@ -389,23 +389,23 @@ def describe_ssh_mount_warning():
         def it_does_nothing_when_no_ssh_key_specified():
             """Should not warn when no SSH key is specified."""
             args = argparse.Namespace(ssh_key_file=None)
-            with patch("clanker.cli.get_existing_container") as mock_get:
+            with patch("clankercage.cli.get_existing_container") as mock_get:
                 warn_if_ssh_mount_missing(args, Path("/test"))
                 mock_get.assert_not_called()
 
         def it_does_nothing_when_no_existing_container():
             """Should not warn when no existing container."""
             args = argparse.Namespace(ssh_key_file="/path/to/key")
-            with patch("clanker.cli.get_existing_container", return_value=None):
-                with patch("clanker.cli.container_has_ssh_mounts") as mock_has:
+            with patch("clankercage.cli.get_existing_container", return_value=None):
+                with patch("clankercage.cli.container_has_ssh_mounts") as mock_has:
                     warn_if_ssh_mount_missing(args, Path("/test"))
                     mock_has.assert_not_called()
 
         def it_does_nothing_when_container_has_ssh_mounts():
             """Should not warn when container already has SSH mounts."""
             args = argparse.Namespace(ssh_key_file="/path/to/key")
-            with patch("clanker.cli.get_existing_container", return_value="abc123"):
-                with patch("clanker.cli.container_has_ssh_mounts", return_value=True):
+            with patch("clankercage.cli.get_existing_container", return_value="abc123"):
+                with patch("clankercage.cli.container_has_ssh_mounts", return_value=True):
                     with patch("builtins.print") as mock_print:
                         warn_if_ssh_mount_missing(args, Path("/test"))
                         mock_print.assert_not_called()
@@ -413,8 +413,8 @@ def describe_ssh_mount_warning():
         def it_warns_when_ssh_key_but_no_mounts(capsys):
             """Should print warning when SSH key specified but container lacks mounts."""
             args = argparse.Namespace(ssh_key_file="/path/to/key")
-            with patch("clanker.cli.get_existing_container", return_value="abc123"):
-                with patch("clanker.cli.container_has_ssh_mounts", return_value=False):
+            with patch("clankercage.cli.get_existing_container", return_value="abc123"):
+                with patch("clankercage.cli.container_has_ssh_mounts", return_value=False):
                     warn_if_ssh_mount_missing(args, Path("/test"))
 
             captured = capsys.readouterr()
