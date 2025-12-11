@@ -31,11 +31,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   ca-certificates \
   iputils-ping
 
-# Install Docker CLI and git-delta
+# Install Docker CLI and git-delta (with retry for transient failures)
 ARG DOCKER_VERSION=27.3.1
 ARG GIT_DELTA_VERSION=0.18.2
 RUN ARCH=$(dpkg --print-architecture) && \
-  curl -fsSL "https://download.docker.com/linux/static/stable/$(uname -m)/docker-${DOCKER_VERSION}.tgz" | tar xz --strip-components=1 -C /usr/local/bin docker/docker && \
+  for i in 1 2 3; do \
+    curl -fsSL "https://download.docker.com/linux/static/stable/$(uname -m)/docker-${DOCKER_VERSION}.tgz" | tar xz --strip-components=1 -C /usr/local/bin docker/docker && break || sleep 5; \
+  done && \
   curl -fsSL "https://github.com/dandavison/delta/releases/download/${GIT_DELTA_VERSION}/git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" -o /tmp/git-delta.deb && \
   dpkg -i /tmp/git-delta.deb && rm /tmp/git-delta.deb
 
