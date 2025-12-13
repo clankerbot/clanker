@@ -2,6 +2,8 @@
 
 A sandbox for running Claude Code with full autonomy, without risking your system.
 
+[Read the blog post](https://thekevinscott.com/sandbox-for-claude-code/) for more context.
+
 ## What It Solves
 
 You want Claude Code to run with `--dangerously-skip-permissions` so it can work without constant interruptions. But you don't want it [deleting your hard drive](https://www.tomshardware.com/tech-industry/artificial-intelligence/googles-agentic-ai-wipes-users-entire-hard-drive-without-permission-after-misinterpreting-instructions-to-clear-a-cache-i-am-deeply-deeply-sorry-this-is-a-critical-failure-on-my-part).
